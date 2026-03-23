@@ -49,7 +49,7 @@ st.markdown("""
 # --- CONSTANTES TÉCNICAS ---
 PESO_TUBO_METRO = 0.692
 METROS_POR_GRADE = 6.12
-CON_TUBO_KG = round(METROS_POR_GRADE * PESO_TUBO_METRO, 3) # 4.235 Kg
+CON_TUBO_KG = round(METROS_POR_GRADE * PESO_TUBO_METRO, 3) 
 CON_BARRA_KG = 6.60 
 
 DB_FILE = "dados_mark_v11.csv"
@@ -74,7 +74,7 @@ if 'estoque' not in st.session_state:
 def salvar():
     pd.DataFrame([st.session_state.estoque]).to_csv(STOCK_FILE, index=False, sep=';', encoding='utf-8-sig')
 
-# --- MENU LATERAL (CORRIGIDO) ---
+# --- MENU LATERAL ---
 with st.sidebar:
     st.markdown("<h1 class='titulo-mark'>MARK<br>EVENTOS</h1>", unsafe_allow_html=True)
     menu = st.radio("NAVEGAÇÃO", ["🏠 PAINEL", "🔨 PRODUÇÃO CRUA", "🎨 ACABAMENTO", "🤝 VENDAS", "🚚 CARGA", "📊 RELATÓRIO"])
@@ -83,7 +83,6 @@ with st.sidebar:
 if menu == "🏠 PAINEL":
     st.header("📊 Resumo de Estoque e Capacidade")
     
-    # Estoque de Grades Prontas
     c1, c2, c3 = st.columns(3)
     c1.metric("GRADES CRUAS", f"{int(st.session_state.estoque['crua_un'])} Un")
     c2.metric("GRADES PINTADAS", f"{int(st.session_state.estoque['pintada_un'])} Un")
@@ -91,7 +90,6 @@ if menu == "🏠 PAINEL":
     
     st.divider()
     
-    # Matéria-Prima
     ca, cb = st.columns(2)
     ca.metric("ESTOQUE TUBO 1.1/4", f"{st.session_state.estoque['tubo_kg']:.2f} Kg")
     cb.metric("ESTOQUE BARRA 3/8", f"{st.session_state.estoque['barra_kg']:.2f} Kg")
@@ -123,7 +121,8 @@ elif menu == "🔨 PRODUÇÃO CRUA":
             st.session_state.estoque['barra_kg'] -= t_b
             st.session_state.estoque['crua_un'] += qtd
             registrar_log("PRODUCAO", "SOLDA", "INTERNO", "GRADE", "CRUA", qtd, t_t+t_b)
-            salvar(); st.success(f"{qtd} Grades Cruas adicionadas!")
+            salvar()
+            st.success(f"{qtd} Grades Cruas adicionadas!")
         else:
             st.error("Massa de aço insuficiente!")
 
@@ -138,7 +137,8 @@ elif menu == "🎨 ACABAMENTO":
             chave = 'pintada_un' if tipo == "Pintura" else 'galva_un'
             st.session_state.estoque[chave] += qtd
             registrar_log("ACABAMENTO", "PROCESSO", "INTERNO", "GRADE", tipo.upper(), qtd, 0)
-            salvar(); st.success(f"Movido para {tipo} com sucesso!")
+            salvar()
+            st.success(f"Movido para {tipo} com sucesso!")
         else:
             st.error("Não há grades cruas suficientes!")
 
@@ -152,7 +152,9 @@ elif menu == "🤝 VENDAS":
         if st.session_state.estoque[chave] >= qtd and cli:
             st.session_state.estoque[chave] -= qtd
             registrar_log("VENDA", "SAÍDA", cli.upper(), "GRADE", tipo.upper(), qtd, 0)
-            salvar(); st.balloons(); st.success("Venda registrada!")
+            salvar()
+            st.balloons()
+            st.success("Venda registrada!")
         else:
             st.error("Estoque insuficiente!")
 
@@ -164,11 +166,14 @@ elif menu == "🚚 CARGA":
         chave = 'tubo_kg' if "TUBO" in mat else 'barra_kg'
         st.session_state.estoque[chave] += peso
         registrar_log("CARGA", "ENTRADA", "FORNECEDOR", "MATERIA-PRIMA", mat, 0, peso)
-        salvar(); st.success(f"{peso} Kg de {mat} adicionados!")
+        salvar()
+        st.success(f"{peso} Kg de {mat} adicionados!")
 
 elif menu == "RELATÓRIO":
     st.header("📋 Relatório Geral Mark Eventos")
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE, sep=';', encoding='utf-8-sig')
         st.dataframe(df, use_container_width=True)
-        st.download_button("📥 Baixar Excel", df.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig'), "Relatorio_Mark_Eventos.csv", "text/csv"):
+        # Removido o ":" extra que causava o erro de sintaxe
+        csv_data = df.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
+        st.download_button(label="📥 Baixar Excel", data=csv_data, file_name="Relatorio_Mark_Eventos.csv", mime="text/csv")
