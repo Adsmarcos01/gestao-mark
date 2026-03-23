@@ -3,23 +3,27 @@ import pandas as pd
 from datetime import datetime
 import os
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="SISTEMA MARK EVENTOS", layout="wide")
+# --- FORÇAR MODO ESCURO E ESTILO ---
+st.set_page_config(page_title="SISTEMA MARK EVENTOS", layout="wide", initial_sidebar_state="expanded")
 
-# --- CSS PERSONALIZADO (ALTO CONTRASTE) ---
 st.markdown("""
     <style>
-    /* 1. FUNDO E TEXTOS GERAIS */
+    /* 1. FUNDO TOTAL PRETO */
+    .stApp { background-color: #000000 !important; }
     .main { background-color: #000000 !important; color: #FFFFFF !important; }
     
-    /* 2. BARRA LATERAL */
+    /* 2. BARRA LATERAL (MENU ESQUERDO) */
     [data-testid="stSidebar"] { 
         background-color: #000000 !important; 
         border-right: 2px solid #EBC92C; 
     }
-    [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
+    /* Texto do Menu Lateral - Branco Puro e Negrito */
+    [data-testid="stSidebar"] .stMarkdown p, 
+    [data-testid="stSidebar"] label, 
+    [data-testid="stSidebar"] span {
         color: #FFFFFF !important;
-        font-weight: bold;
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
     }
 
     /* 3. TÍTULO DA MARCA */
@@ -28,70 +32,68 @@ st.markdown("""
         text-align: center;
         font-family: 'Arial Black', sans-serif;
         border-bottom: 2px solid #EBC92C;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
+        padding-bottom: 15px;
+        margin-bottom: 25px;
     }
 
-    /* 4. MÉTRICAS (NÚMEROS GRANDES) */
-    [data-testid="stMetricValue"] { color: #FFFFFF !important; font-weight: bold !important; }
-    [data-testid="stMetricLabel"] { color: #EBC92C !important; font-size: 1.1rem !important; }
+    /* 4. CARTÕES DE ESTOQUE (MÉTRICAS) */
     [data-testid="stMetric"] { 
-        background-color: #1A1A1A !important; 
-        border-radius: 10px; 
-        border-left: 5px solid #EBC92C;
-        padding: 15px;
+        background-color: #111111 !important; 
+        border-radius: 12px; 
+        border: 1px solid #333;
+        border-left: 6px solid #EBC92C;
+        padding: 20px;
     }
+    [data-testid="stMetricValue"] { color: #FFFFFF !important; }
+    [data-testid="stMetricLabel"] { color: #EBC92C !important; }
 
-    /* 5. BOTÕES */
+    /* 5. BOTÕES AMARELOS */
     .stButton>button {
         background-color: #EBC92C !important;
         color: #000000 !important;
-        font-weight: bold !important;
-        border-radius: 8px !important;
-        height: 3.5em;
-        border: none !important;
-    }
-    .stButton>button:hover {
-        background-color: #FFFFFF !important;
-        color: #000000 !important;
+        font-weight: 900 !important;
+        border-radius: 10px !important;
+        height: 3.8em;
+        text-transform: uppercase;
     }
 
-    /* 6. CAMPOS DE ENTRADA (ESCRITA) */
-    input, select, textarea {
-        background-color: #262626 !important;
+    /* 6. INPUTS E CAMPOS DE TEXTO */
+    input, select, .stSelectbox div {
+        background-color: #1A1A1A !important;
         color: #FFFFFF !important;
-        border: 1px solid #EBC92C !important;
+        border: 1px solid #444 !important;
     }
-    label { color: #FFFFFF !important; } /* Cor dos nomes dos campos */
+    label { color: #FFFFFF !important; font-weight: bold; }
 
-    /* 7. TABELA (RELATÓRIO) */
-    .stDataFrame { background-color: #1A1A1A !important; }
+    /* 7. TABELA DE DADOS */
+    .stDataFrame { background-color: #000000 !important; border: 1px solid #333; }
     
-    /* Títulos e Subtítulos */
     h1, h2, h3 { color: #EBC92C !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- CONFIGURAÇÃO DE DADOS ---
-DB_FILE = "dados_mark_v7.csv"
-STOCK_FILE = "estoque_mark_v7.csv"
+# --- BANCO DE DADOS ---
+DB_FILE = "dados_mark_v8.csv"
+STOCK_FILE = "estoque_mark_v8.csv"
 CON_TUBO, CON_BARRA = 6.162, 6.60
 
-def registrar_log(cat, op, cli, prod, qtd, kg):
+def registrar_log(cat, op, cli_nf, prod, acabamento, qtd, kg):
     agora = datetime.now()
     novo = pd.DataFrame([{
         'DATA': agora.strftime("%d/%m/%Y"), 'HORA': agora.strftime("%H:%M:%S"),
-        'CATEGORIA': cat, 'OPERACAO': op, 'CLIENTE_NF': cli,
-        'PRODUTO': prod, 'QTD': qtd, 'KG': str(round(kg, 2)).replace('.', ',')
+        'CATEGORIA': cat, 'OPERACAO': op, 'CLIENTE_NF': cli_nf,
+        'PRODUTO': prod, 'ACABAMENTO': acabamento, 'QTD': qtd, 
+        'KG': str(round(kg, 2)).replace('.', ',')
     }])
     header = not os.path.exists(DB_FILE)
     novo.to_csv(DB_FILE, mode='a', header=header, index=False, sep=';', encoding='utf-8-sig')
 
+# Inicialização de Estoque (Diferenciando por acabamento)
 if 'estoque' not in st.session_state:
     if os.path.exists(STOCK_FILE):
         try: st.session_state.estoque = pd.read_csv(STOCK_FILE, sep=';').to_dict('records')[0]
-        except: st.session_state.estoque = {'tubo': 0.0, 'barra': 0.0, 'prontas': 0}
-    else: st.session_state.estoque = {'tubo': 0.0, 'barra': 0.0, 'prontas': 0}
+        except: st.session_state.estoque = {'tubo': 0.0, 'barra': 0.0, 'pintura': 0, 'galvanizacao': 0}
+    else: st.session_state.estoque = {'tubo': 0.0, 'barra': 0.0, 'pintura': 0, 'galvanizacao': 0}
 
 def salvar_estoque():
     pd.DataFrame([st.session_state.estoque]).to_csv(STOCK_FILE, index=False, sep=';', encoding='utf-8-sig')
@@ -103,53 +105,69 @@ with st.sidebar:
 
 # --- PÁGINAS ---
 if menu == "🏠 PAINEL":
-    st.header("📊 Painel Geral de Estoque")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("GRADES PRONTAS", f"{int(st.session_state.estoque['prontas'])} un")
-    c2.metric("TUBO 1.1/4 (Kg)", f"{st.session_state.estoque['tubo']:.1f}")
-    c3.metric("BARRA 3/8 (Kg)", f"{st.session_state.estoque['barra']:.1f}")
+    st.header("📊 Painel de Estoque Atual")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("GRADES (PINTURA)", f"{int(st.session_state.estoque['pintura'])} un")
+    with col2:
+        st.metric("GRADES (GALVANIZAÇÃO)", f"{int(st.session_state.estoque['galvanizacao'])} un")
+    
+    st.divider()
+    c1, c2 = st.columns(2)
+    with c1: st.metric("TUBO 1.1/4 (Kg)", f"{st.session_state.estoque['tubo']:.1f}")
+    with c2: st.metric("BARRA 3/8 (Kg)", f"{st.session_state.estoque['barra']:.1f}")
 
 elif menu == "🔨 PRODUÇÃO":
-    st.header("🔨 Registrar Fabricação")
+    st.header("🔨 Registrar Fabricação e Destino")
+    destino = st.selectbox("Destinar produção para:", ["Pintura", "Galvanização"])
     qtd = st.number_input("Quantidade produzida:", min_value=1, step=1)
+    
     if st.button("CONFIRMAR PRODUÇÃO"):
         g_t, g_b = qtd * CON_TUBO, qtd * CON_BARRA
         if st.session_state.estoque['tubo'] >= g_t:
             st.session_state.estoque['tubo'] -= g_t
             st.session_state.estoque['barra'] -= g_b
-            st.session_state.estoque['prontas'] += qtd
-            registrar_log("PRODUCAO", "FABRICAÇÃO", "INTERNO", "GRADE", qtd, g_t+g_b)
+            
+            # Adiciona no estoque específico
+            chave = 'pintura' if destino == "Pintura" else 'galvanizacao'
+            st.session_state.estoque[chave] += qtd
+            
+            registrar_log("PRODUCAO", "FABRICAÇÃO", "INTERNO", "GRADE", destino.upper(), qtd, g_t+g_b)
             salvar_estoque()
-            st.success("Estoque atualizado!")
-        else: st.error("Massa de aço insuficiente!")
+            st.success(f"Registrado! {qtd} grades enviadas para {destino}.")
+        else: st.error("Massa de aço insuficiente no estoque!")
 
 elif menu == "🤝 VENDAS":
     st.header("🤝 Registrar Venda")
+    tipo_venda = st.selectbox("Tipo de Grade Vendida:", ["Pintura", "Galvanização"])
     cli = st.text_input("Nome do Cliente:")
     qtd = st.number_input("Quantidade vendida:", min_value=1, step=1)
+    
     if st.button("FINALIZAR VENDA"):
-        if st.session_state.estoque['prontas'] >= qtd and cli:
-            st.session_state.estoque['prontas'] -= qtd
-            registrar_log("VENDA", "SAÍDA", cli.upper(), "GRADE", qtd, 0)
+        chave = 'pintura' if tipo_venda == "Pintura" else 'galvanizacao'
+        if st.session_state.estoque[chave] >= qtd and cli:
+            st.session_state.estoque[chave] -= qtd
+            registrar_log("VENDA", "SAÍDA", cli.upper(), "GRADE", tipo_venda.upper(), qtd, 0)
             salvar_estoque()
-            st.success("Venda registrada!")
-        else: st.error("Verifique estoque ou nome do cliente.")
+            st.balloons()
+            st.success(f"Venda de {qtd} grades ({tipo_venda}) registrada!")
+        else: st.error(f"Estoque insuficiente de grades com acabamento: {tipo_venda}")
 
 elif menu == "🚚 CARGA":
-    st.header("🚚 Entrada de Material")
+    st.header("🚚 Entrada de Matéria-Prima")
     mat = st.selectbox("Tipo:", ["tubo", "barra"])
     nf = st.text_input("Nota Fiscal:")
     peso = st.number_input("Peso (Kg):", min_value=0.0)
     if st.button("ADICIONAR AO ESTOQUE"):
         st.session_state.estoque[mat] += peso
-        registrar_log("CARGA", "ENTRADA", f"NF: {nf}", mat, 0, peso)
+        registrar_log("CARGA", "ENTRADA", f"NF: {nf}", mat, "MATÉRIA-PRIMA", 0, peso)
         salvar_estoque()
-        st.success("Carga adicionada!")
+        st.success("Carga adicionada com sucesso!")
 
 elif menu == "RELATÓRIO":
-    st.header("📋 Histórico Completo")
+    st.header("📋 Histórico e Filtros Profissionais")
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE, sep=';', encoding='utf-8-sig')
         st.dataframe(df, use_container_width=True)
         csv = df.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
-        st.download_button("📥 Baixar Planilha", csv, "Relatorio_Mark.csv", "text/csv")
+        st.download_button("📥 Baixar Planilha Separada", csv, "Relatorio_Mark_Oficial.csv", "text/csv")
