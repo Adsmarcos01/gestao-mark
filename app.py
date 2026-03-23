@@ -47,7 +47,13 @@ CON_BARRA_KG = 6.60
 
 DB_FILE = "log_atividades_mark.csv"
 STOCK_FILE = "estoque_mark_atual.csv"
-WHATSAPP_NUM = "5531981041586"
+
+# --- AGENDA DE CONTATOS (ADICIONE MAIS AQUI SE PRECISAR) ---
+CONTATOS = {
+    "Meu WhatsApp (Pessoal)": "5531981041586",
+    "Fábrica / Produção": "5531900000000", # Exemplo: substitua pelo número real
+    "Sócio / Escritório": "5531900000000"  # Exemplo: substitua pelo número real
+}
 
 # --- FUNÇÕES DE DADOS ---
 def registrar_log(cat, op, cli_nf, prod, status, qtd, kg):
@@ -144,24 +150,36 @@ elif menu == "📊 RELATÓRIO":
         df = pd.read_csv(DB_FILE, sep=';', encoding='utf-8-sig')
         st.dataframe(df, use_container_width=True)
         
-        # --- BOTÃO WHATSAPP ---
+        st.divider()
+        st.subheader("📲 Compartilhar Resumo")
+        
+        # Seleção do Destinatário
+        contato_selecionado = st.selectbox("Selecione para quem enviar:", list(CONTATOS.keys()))
+        numero_destino = CONTATOS[contato_selecionado]
+        
+        # Montagem da Mensagem
+        vendas_df = df[df['CATEGORIA'] == 'VENDA'].tail(5)
         msg = f"*📢 RESUMO MARK EVENTOS - {datetime.now().strftime('%d/%m/%Y')}*\n\n"
-        msg += f"*📦 ESTOQUE PRONTO:*\n"
+        msg += f"*📦 ESTOQUE NO PÁTIO:*\n"
         msg += f"- Grades Cruas: {int(st.session_state.estoque['crua_un'])} Un\n"
         msg += f"- Grades Pintadas: {int(st.session_state.estoque['pintada_un'])} Un\n"
         msg += f"- Grades Galvanizadas: {int(st.session_state.estoque['galva_un'])} Un\n\n"
-        msg += f"*🏗️ MATÉRIA-PRIMA:*\n"
-        msg += f"- Tubo: {st.session_state.estoque['tubo_kg']:.2f} Kg\n"
-        msg += f"- Barra: {st.session_state.estoque['barra_kg']:.2f} Kg\n\n"
+        
+        if not vendas_df.empty:
+            msg += f"*🤝 ÚLTIMAS VENDAS:*\n"
+            for _, row in vendas_df.iterrows():
+                msg += f"- {row['CLIENTE_NF']}: {row['QTD (Un)']} Un ({row['STATUS/TIPO']})\n"
+            msg += "\n"
+            
         msg += f"*🚀 CAPACIDADE DE PRODUÇÃO:* {total_possivel} Unidades\n"
-        msg += f"_Item limitante: {gargalo}_"
+        msg += f"_Limitante atual: {gargalo}_"
         
         texto_url = urllib.parse.quote(msg)
-        link_zap = f"https://wa.me/{WHATSAPP_NUM}?text={texto_url}"
+        link_zap = f"https://wa.me/{numero_destino}?text={texto_url}"
         
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.markdown(f'<a href="{link_zap}" target="_blank" style="text-decoration:none;"><button style="background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer;">📲 ENVIAR RESUMO VIA WHATSAPP</button></a>', unsafe_allow_html=True)
-        with col_b:
+        col_zap, col_csv = st.columns(2)
+        with col_zap:
+            st.markdown(f'<a href="{link_zap}" target="_blank" style="text-decoration:none;"><button style="background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer;">📲 ENVIAR PARA {contato_selecionado.upper()}</button></a>', unsafe_allow_html=True)
+        with col_csv:
             csv_data = df.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
             st.download_button("📥 BAIXAR EXCEL COMPLETO", csv_data, "Relatorio_Mark.csv", "text/csv")
