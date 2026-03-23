@@ -27,7 +27,7 @@ if 'autenticado' not in st.session_state:
 
 if not st.session_state.autenticado:
     st.markdown("<h1 style='text-align:center;'>🔐 ACESSO RESTRITO - MARK</h1>", unsafe_allow_html=True)
-    col_l, col_r = st.columns([1,1])
+    col_l, _ = st.columns([1,1])
     with col_l:
         senha = st.text_input("Senha de acesso:", type="password")
         if st.button("ENTRAR"):
@@ -38,7 +38,7 @@ if not st.session_state.autenticado:
                 st.error("Senha incorreta!")
     st.stop()
 
-# --- CONSTANTES ---
+# --- CONSTANTES TÉCNICAS ---
 PESO_TUBO_METRO = 0.692
 METROS_POR_GRADE = 6.12
 CON_TUBO_KG = round(METROS_POR_GRADE * PESO_TUBO_METRO, 3) 
@@ -46,14 +46,14 @@ CON_BARRA_KG = 6.60
 DB_FILE = "log_atividades_mark.csv"
 STOCK_FILE = "estoque_mark_atual.csv"
 
-# AGENDA DE CONTATOS (Altere os números aqui)
+# AGENDA DE CONTATOS
 CONTATOS = {
     "Meu WhatsApp": "5531981041586",
     "Produção": "5531900000000",
     "Escritório": "5531900000000"
 }
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES DE DADOS ---
 def registrar_log(cat, op, cli, prod, status, qtd, kg):
     agora = datetime.now()
     novo = pd.DataFrame([{
@@ -68,13 +68,16 @@ def registrar_log(cat, op, cli, prod, status, qtd, kg):
         'PESO_KG': round(kg, 2),
         'CATEGORIA': cat
     }])
+    # Grava sempre com o novo cabeçalho se o arquivo estiver vazio ou der erro
     header = not os.path.exists(DB_FILE)
     novo.to_csv(DB_FILE, mode='a', header=header, index=False, sep=';', encoding='utf-8-sig')
 
 if 'estoque' not in st.session_state:
     if os.path.exists(STOCK_FILE):
-        try: st.session_state.estoque = pd.read_csv(STOCK_FILE, sep=';').to_dict('records')[0]
-        except: st.session_state.estoque = {'tubo_kg': 0.0, 'barra_kg': 0.0, 'crua_un': 0, 'pintada_un': 0, 'galva_un': 0}
+        try: 
+            st.session_state.estoque = pd.read_csv(STOCK_FILE, sep=';').to_dict('records')[0]
+        except: 
+            st.session_state.estoque = {'tubo_kg': 0.0, 'barra_kg': 0.0, 'crua_un': 0, 'pintada_un': 0, 'galva_un': 0}
     else:
         st.session_state.estoque = {'tubo_kg': 0.0, 'barra_kg': 0.0, 'crua_un': 0, 'pintada_un': 0, 'galva_un': 0}
 
@@ -166,25 +169,30 @@ elif menu == "🚚 CARGA":
 elif menu == "📊 RELATÓRIO":
     st.header("📊 Gestão do Relatório")
     if os.path.exists(DB_FILE):
-        df = pd.read_csv(DB_FILE, sep=';', encoding='utf-8-sig')
-        
-        if 'ID' in df.columns:
-            st.subheader("🗑️ Corrigir Lançamento")
-            id_del = st.number_input("ID para apagar:", step=1, value=0)
-            if st.button("❌ APAGAR"):
-                df = df[df['ID'] != id_del]
-                df.to_csv(DB_FILE, index=False, sep=';', encoding='utf-8-sig')
-                st.warning("Removido! Por favor, atualize a página.")
-            st.divider()
-            st.dataframe(df.sort_values(by='ID', ascending=False), use_container_width=True)
-        else:
-            st.warning("⚠️ Histórico antigo detectado. Registre uma nova ação para atualizar o formato.")
-            st.dataframe(df, use_container_width=True)
+        try:
+            # CORREÇÃO CRÍTICA: on_bad_lines='skip' ignora as linhas bagunçadas dos testes anteriores
+            df = pd.read_csv(DB_FILE, sep=';', encoding='utf-8-sig', on_bad_lines='skip')
+            
+            if not df.empty and 'ID' in df.columns:
+                st.subheader("🗑️ Corrigir Lançamento")
+                id_del = st.number_input("ID para apagar (veja na tabela):", step=1, value=0)
+                if st.button("❌ APAGAR"):
+                    df = df[df['ID'] != id_del]
+                    df.to_csv(DB_FILE, index=False, sep=';', encoding='utf-8-sig')
+                    st.warning("Removido! Por favor, atualize a página.")
+                st.divider()
+                st.dataframe(df.sort_values(by='ID', ascending=False), use_container_width=True)
+            else:
+                st.dataframe(df, use_container_width=True)
+                st.warning("⚠️ Algumas linhas antigas foram ignoradas para evitar erro. Novas ações serão gravadas corretamente.")
+        except Exception as e:
+            st.error(f"Erro ao ler arquivo: {e}. Tente registrar uma nova Carga para resetar o formato.")
 
         # WHATSAPP
         st.subheader("📲 WhatsApp")
         contato = st.selectbox("Enviar para:", list(CONTATOS.keys()))
-        v_hoje = df[df['CATEGORIA'] == 'VENDA'].tail(3) if 'CATEGORIA' in df.columns else pd.DataFrame()
+        v_hoje = df[df['CATEGORIA'] == 'VENDA'].tail(3) if not df.empty and 'CATEGORIA' in df.columns else pd.DataFrame()
+        
         msg = f"*📢 MARK EVENTOS - {datetime.now().strftime('%d/%m/%Y')}*\n\n*ESTOQUE:* Cruas: {int(st.session_state.estoque['crua_un'])} | Pintadas: {int(st.session_state.estoque['pintada_un'])} | Galva: {int(st.session_state.estoque['galva_un'])}\n\n"
         if not v_hoje.empty:
             msg += "*VENDAS:* " + ", ".join([f"{r['CLIENTE_NF']} ({r['QTD']})" for _, r in v_hoje.iterrows()])
