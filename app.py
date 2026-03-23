@@ -44,27 +44,7 @@ METROS_POR_GRADE = 6.12
 CON_TUBO_KG = round(METROS_POR_GRADE * PESO_TUBO_METRO, 3) 
 CON_BARRA_KG = 6.60 
 
-# Padronizando o nome do arquivo para evitar conflitos de versão
 DB_FILE = "log_atividades_mark.csv"
 STOCK_FILE = "estoque_mark_atual.csv"
 
-# --- FUNÇÕES DE DADOS ---
-def registrar_log(cat, op, cli_nf, prod, status, qtd, kg):
-    agora = datetime.now()
-    novo = pd.DataFrame([{
-        'DATA': agora.strftime("%d/%m/%Y"), 
-        'HORA': agora.strftime("%H:%M:%S"),
-        'CATEGORIA': cat, 
-        'OPERACAO': op, 
-        'CLIENTE_NF': cli_nf,
-        'PRODUTO': prod, 
-        'STATUS/TIPO': status, 
-        'QTD (Un)': qtd, 
-        'PESO (Kg)': str(round(kg, 2)).replace('.', ',')
-    }])
-    header = not os.path.exists(DB_FILE)
-    novo.to_csv(DB_FILE, mode='a', header=header, index=False, sep=';', encoding='utf-8-sig')
-
-if 'estoque' not in st.session_state:
-    if os.path.exists(STOCK_FILE):
-        st.session_state.estoque =
+# --- FUN
