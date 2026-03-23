@@ -51,7 +51,7 @@ STOCK_FILE = "estoque_mark_atual.csv"
 # --- AGENDA DE CONTATOS (ADICIONE MAIS AQUI SE PRECISAR) ---
 CONTATOS = {
     "Meu WhatsApp (Pessoal)": "5531981041586",
-    "Fábrica / Produção": "5531900000000", # Exemplo: substitua pelo número real
+    "Fábrica / Produção": "5531971594435", # Exemplo: substitua pelo número real
     "Sócio / Escritório": "5531900000000"  # Exemplo: substitua pelo número real
 }
 
