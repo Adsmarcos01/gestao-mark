@@ -5,21 +5,41 @@ import os
 import urllib.parse
 import plotly.express as px
 
-# --- ESTILO VISUAL DE ALTO CONTRASTE ---
-st.set_page_config(page_title="SISTEMA MARK EVENTOS", layout="wide")
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="MARK EVENTOS - Gestão", layout="wide", initial_sidebar_state="expanded")
 
+# --- CSS PERSONALIZADO (VISUAL DARK PREMIUM) ---
 st.markdown("""
     <style>
-    .stApp { background-color: #000000 !important; color: #FFFFFF !important; }
-    [data-testid="stSidebar"] { background-color: #000000 !important; border-right: 2px solid #EBC92C; }
-    .titulo-mark { color: #EBC92C !important; text-align: center; font-family: 'Arial Black'; border-bottom: 2px solid #EBC92C; padding-bottom: 10px; }
-    .stButton>button { background-color: #EBC92C !important; color: #000 !important; font-weight: 900 !important; width: 100%; border-radius: 8px; height: 3.5em; }
-    [data-testid="stMetric"] { background-color: #1A1A1A !important; border-left: 5px solid #EBC92C; padding: 15px; border-radius: 10px; }
-    [data-testid="stMetricValue"] { color: #FFFFFF !important; }
-    [data-testid="stMetricLabel"] { color: #EBC92C !important; font-weight: bold !important; }
-    label, .stMarkdown, p, span { color: #E0E0E0 !important; font-size: 1.05rem; }
-    input, select, .stSelectbox div { background-color: #1A1A1A !important; color: #FFFFFF !important; border: 1px solid #EBC92C !important; }
-    h1, h2, h3 { color: #EBC92C !important; font-weight: bold !important; }
+    .stApp { background-color: #12141D !important; color: #FFFFFF !important; }
+    [data-testid="stSidebar"] { background-color: #1A1C26 !important; border-right: 1px solid #2D303E; width: 260px !important; }
+    
+    /* Logo e Menu */
+    .logo-text { color: #FFB800; font-family: 'Arial Black'; font-weight: 800; font-size: 26px; text-align: center; margin-bottom: 30px; border-bottom: 2px solid #FFB800; padding-bottom: 10px; }
+    
+    /* Cards de Conteúdo */
+    .main-card { background-color: #1A1C26; border: 1px solid #2D303E; border-radius: 15px; padding: 25px; margin-bottom: 20px; }
+    
+    /* Estilo de Inputs */
+    label { color: #E0E0E0 !important; font-weight: bold !important; }
+    input, select, textarea, .stSelectbox div { background-color: #12141D !important; color: white !important; border: 1px solid #2D303E !important; border-radius: 10px !important; }
+    
+    /* Botão Azul Profissional */
+    .stButton>button { background-color: #2D7FF9 !important; color: white !important; border: none !important; border-radius: 12px !important; height: 50px !important; font-weight: bold !important; width: 100%; transition: 0.3s; }
+    .stButton>button:hover { background-color: #1A66D6 !important; transform: scale(1.01); }
+
+    /* Métricas Laterais (Projeção) */
+    .projecao-card { background-color: #1A1C26; border-radius: 15px; border: 1px solid #2D303E; padding: 20px; }
+    .metric-title { color: #9499B0; font-size: 13px; text-transform: uppercase; margin-bottom: 5px; }
+    .metric-value { color: #FFFFFF; font-size: 24px; font-weight: bold; margin-bottom: 15px; }
+    .metric-unit { font-size: 14px; color: #9499B0; }
+
+    /* Tabelas */
+    .stDataFrame { border: 1px solid #2D303E; border-radius: 10px; }
+    
+    /* Esconder elementos padrão */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -28,21 +48,24 @@ if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
-    st.markdown("<h1 style='text-align:center;'>🔐 ACESSO RESTRITO - MARK</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color: #FFB800;'>MARK EVENTOS</h1>", unsafe_allow_html=True)
     col_l, _ = st.columns([1,1])
     with col_l:
-        senha = st.text_input("Senha:", type="password")
-        if st.button("ENTRAR"):
+        senha = st.text_input("Senha de Acesso:", type="password")
+        if st.button("ENTRAR NO SISTEMA"):
             if senha == "mark2026":
                 st.session_state.autenticado = True
                 st.rerun()
+            else: st.error("Senha incorreta!")
     st.stop()
 
-# --- CONSTANTES E BANCO DE DADOS ---
+# --- CONSTANTES TÉCNICAS ---
+PESO_TUBO_METRO = 0.692
+METROS_POR_GRADE = 6.12
+CON_TUBO_KG = round(METROS_POR_GRADE * PESO_TUBO_METRO, 3) 
+CON_BARRA_KG = 6.60 
 DB_FILE = "log_atividades_mark.csv"
 STOCK_FILE = "estoque_mark_atual.csv"
-CON_TUBO_KG, CON_BARRA_KG = 4.235, 6.60
-
 CONTATOS = {"Meu WhatsApp": "5531981041586", "Produção": "5531900000000"}
 
 # --- FUNÇÕES ---
@@ -66,113 +89,128 @@ def salvar():
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h1 class='titulo-mark'>MARK<br>EVENTOS</h1>", unsafe_allow_html=True)
-    menu = st.radio("Navegação", ["🏠 DASHBOARD", "🔨 PRODUÇÃO", "🎨 ACABAMENTO", "🤝 VENDAS", "🚚 CARGA", "📊 RELATÓRIO"])
+    st.markdown('<div class="logo-text">MARK EVENTOS</div>', unsafe_allow_html=True)
+    menu = st.radio("", ["🏠 Visão Geral", "🔨 Produção", "🎨 Acabamento", "🤝 Vendas", "📥 Entrada Material", "📜 Histórico"], label_visibility="collapsed")
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    if st.button("Sair"):
+        st.session_state.autenticado = False
+        st.rerun()
 
-# --- DASHBOARD COM GRÁFICOS DE VENDAS ---
-if menu == "🏠 DASHBOARD":
-    st.header("📈 Painel de Performance")
+# --- 🏠 VISÃO GERAL (DASHBOARD) ---
+if menu == "🏠 Visão Geral":
+    st.header("🏠 Painel de Performance")
     
-    # Métricas Rápidas
+    # Cards Superiores
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("CRUAS", f"{int(st.session_state.estoque['crua_un'])} Un")
+    c1.metric("GRADES CRUAS", f"{int(st.session_state.estoque['crua_un'])} Un")
     c2.metric("PINTADAS", f"{int(st.session_state.estoque['pintada_un'])} Un")
-    c3.metric("GALVA", f"{int(st.session_state.estoque['galva_un'])} Un")
-    cap = min(int(st.session_state.estoque['tubo_kg']//CON_TUBO_KG), int(st.session_state.estoque['barra_kg']//CON_BARRA_KG))
-    c4.metric("CAPACIDADE", f"{cap} Un")
+    c3.metric("GALVANIZADAS", f"{int(st.session_state.estoque['galva_un'])} Un")
+    cap = min(int(st.session_state.estoque['tubo_kg']//CON_TUBO_KG), int(st.session_state.estoque['barra_kg']//CON_BARRA_KG)) if st.session_state.estoque['tubo_kg'] > 0 else 0
+    c4.metric("CAPACIDADE FAB.", f"{cap} Un")
 
     st.divider()
 
     if os.path.exists(DB_FILE):
-        df_raw = pd.read_csv(DB_FILE, sep=';', encoding='utf-8-sig', on_bad_lines='skip')
-        if 'QTD (Un)' in df_raw.columns: df_raw = df_raw.rename(columns={'QTD (Un)': 'QTD'})
-        
-        # Filtro de Vendas
-        df_vendas = df_raw[df_raw['CATEGORIA'] == 'VENDA'].copy()
+        df_v = pd.read_csv(DB_FILE, sep=';', encoding='utf-8-sig', on_bad_lines='skip')
+        if 'QTD (Un)' in df_v.columns: df_v = df_v.rename(columns={'QTD (Un)': 'QTD'})
         
         col_g1, col_g2 = st.columns(2)
-
         with col_g1:
             st.subheader("📦 Vendas por Modelo")
-            if not df_vendas.empty:
-                # Agrupa vendas por TIPO (Pintada/Galva)
-                vendas_modelo = df_vendas.groupby('TIPO')['QTD'].sum().reset_index()
-                fig_vendas = px.bar(vendas_modelo, x='TIPO', y='QTD', color='TIPO', 
-                                   color_discrete_sequence=['#EBC92C', '#AAAAAA'], text_auto=True)
-                fig_vendas.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color="white", showlegend=False)
-                st.plotly_chart(fig_vendas, use_container_width=True)
-            else:
-                st.info("Nenhuma venda registrada ainda.")
-
+            vendas_m = df_v[df_v['CATEGORIA']=='VENDA'].groupby('TIPO')['QTD'].sum().reset_index()
+            fig = px.bar(vendas_m, x='TIPO', y='QTD', color='TIPO', color_discrete_sequence=['#2D7FF9', '#FFB800'])
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white", showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+        
         with col_g2:
-            st.subheader("👥 Maiores Clientes (Qtd)")
-            if not df_vendas.empty:
-                # Agrupa vendas por CLIENTE
-                vendas_cli = df_vendas.groupby('CLIENTE_NF')['QTD'].sum().sort_values(ascending=False).head(5).reset_index()
-                fig_cli = px.pie(vendas_cli, values='Qtd' if 'Qtd' in vendas_cli else 'QTD', names='CLIENTE_NF', hole=.4,
-                                color_discrete_sequence=px.colors.sequential.YlOrBr)
-                fig_cli.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color="white")
-                st.plotly_chart(fig_cli, use_container_width=True)
-            else:
-                st.info("Aguardando dados de vendas.")
-    
-    st.divider()
-    # Estoque de Matéria Prima
-    st.subheader("🏗️ Saldo de Matéria-Prima (Kg)")
-    dados_b = pd.DataFrame({'Material':['Tubo','Barra'], 'Peso':[st.session_state.estoque['tubo_kg'], st.session_state.estoque['barra_kg']]})
-    fig_mat = px.bar(dados_b, x='Material', y='Peso', color='Material', color_discrete_sequence=['#EBC92C', '#555'], orientation='v')
-    fig_mat.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color="white", showlegend=False)
-    st.plotly_chart(fig_mat, use_container_width=True)
+            st.subheader("🏗️ Matéria-Prima (Kg)")
+            dados_m = pd.DataFrame({'Item':['Tubos','Barras'], 'Kg':[st.session_state.estoque['tubo_kg'], st.session_state.estoque['barra_kg']]})
+            fig2 = px.bar(dados_m, x='Item', y='Kg', color='Item', color_discrete_sequence=['#FFB800', '#555'])
+            fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white", showlegend=False)
+            st.plotly_chart(fig2, use_container_width=True)
 
-# --- RESTANTE DAS PÁGINAS (MANTIDAS) ---
-elif menu == "🔨 PRODUÇÃO":
-    st.header("🔨 Produção")
-    qtd = st.number_input("Qtd produzida:", min_value=1, step=1)
-    if st.button("REGISTRAR"):
+# --- 🔨 PRODUÇÃO (SOLDA) ---
+elif menu == "🔨 Produção":
+    st.header("🔨 Registrar Fabricação")
+    st.markdown('<div class="main-card">', unsafe_allow_html=True)
+    qtd = st.number_input("Quantidade de grades soldadas:", min_value=1, step=1)
+    if st.button("CONFIRMAR PRODUÇÃO"):
         t_t, t_b = qtd * CON_TUBO_KG, qtd * CON_BARRA_KG
         if st.session_state.estoque['tubo_kg'] >= t_t:
             st.session_state.estoque['tubo_kg'] -= t_t; st.session_state.estoque['barra_kg'] -= t_b
             st.session_state.estoque['crua_un'] += qtd
-            registrar_log("PRODUCAO", "FABRICAÇÃO", "INTERNO", "GRADE", "CRUA", qtd, t_t+t_b); salvar(); st.success("Feito!")
-        else: st.error("Falta material!")
+            registrar_log("PRODUCAO", "FABRICAÇÃO", "INTERNO", "GRADE", "CRUA", qtd, t_t+t_b); salvar()
+            st.success(f"Sucesso! {qtd} grades cruas adicionadas ao estoque.")
+        else: st.error("Aço insuficiente no estoque!")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-elif menu == "🎨 ACABAMENTO":
-    st.header("🎨 Acabamento")
-    tipo = st.selectbox("Tipo:", ["Pintura", "Galvanização"])
-    qtd = st.number_input("Qtd:", min_value=1)
-    if st.button("ATUALIZAR"):
-        if st.session_state.estoque['crua_un'] >= qtd:
-            st.session_state.estoque['crua_un'] -= qtd
+# --- 🎨 ACABAMENTO ---
+elif menu == "🎨 Acabamento":
+    st.header("🎨 Enviar para Pintura/Galva")
+    st.markdown('<div class="main-card">', unsafe_allow_html=True)
+    tipo = st.selectbox("Tipo de Processo:", ["Pintura", "Galvanização"])
+    qtd_a = st.number_input("Qtd de grades cruas enviadas:", min_value=1)
+    if st.button("REGISTRAR ACABAMENTO"):
+        if st.session_state.estoque['crua_un'] >= qtd_a:
+            st.session_state.estoque['crua_un'] -= qtd_a
             chave = 'pintada_un' if "Pintura" in tipo else 'galva_un'
-            st.session_state.estoque[chave] += qtd
-            registrar_log("ACABAMENTO", "PROCESSO", "INTERNO", "GRADE", tipo.upper(), qtd, 0); salvar(); st.success("Ok!")
+            st.session_state.estoque[chave] += qtd_a
+            registrar_log("ACABAMENTO", "PROCESSO", "INTERNO", "GRADE", tipo.upper(), qtd_a, 0); salvar()
+            st.success("Estoque de acabados atualizado!")
+        else: st.error("Sem grades cruas suficientes!")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-elif menu == "🤝 VENDAS":
-    st.header("🤝 Vendas")
-    tipo = st.selectbox("Material:", ["Pintada", "Galvanizada"])
-    cli = st.text_input("Cliente:")
-    qtd = st.number_input("Qtd:", min_value=1)
-    if st.button("VENDER"):
-        chave = 'pintada_un' if tipo == "Pintada" else 'galva_un'
-        if st.session_state.estoque[chave] >= qtd and cli:
-            st.session_state.estoque[chave] -= qtd
-            registrar_log("VENDA", "SAÍDA", cli.upper(), "GRADE", tipo.upper(), qtd, 0); salvar(); st.balloons(); st.success("Vendido!")
+# --- 🤝 VENDAS ---
+elif menu == "🤝 Vendas":
+    st.header("🤝 Registrar Saída / Venda")
+    st.markdown('<div class="main-card">', unsafe_allow_html=True)
+    mod = st.selectbox("Modelo Vendido:", ["Pintada", "Galvanizada"])
+    cli = st.text_input("Cliente / NF:")
+    qtd_v = st.number_input("Quantidade Vendida:", min_value=1)
+    if st.button("FINALIZAR VENDA"):
+        chave = 'pintada_un' if mod == "Pintada" else 'galva_un'
+        if st.session_state.estoque[chave] >= qtd_v and cli:
+            st.session_state.estoque[chave] -= qtd_v
+            registrar_log("VENDA", "SAÍDA", cli.upper(), "GRADE", mod.upper(), qtd_v, 0); salvar()
+            st.balloons(); st.success("Venda registrada com sucesso!")
+        else: st.error("Erro: Estoque insuficiente ou nome do cliente vazio.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-elif menu == "🚚 CARGA":
-    st.header("🚚 Carga")
-    mat = st.selectbox("Item:", ["TUBO 1.1/4", "BARRA 3/8"])
-    peso = st.number_input("Peso (Kg):", min_value=0.0)
-    if st.button("ADICIONAR"):
-        chave = 'tubo_kg' if "TUBO" in mat else 'barra_kg'
-        st.session_state.estoque[chave] += peso
-        registrar_log("CARGA", "ENTRADA", "FORNECEDOR", "AÇO", mat, 0, peso); salvar(); st.success("Adicionado!")
+# --- 📥 ENTRADA MATERIAL (IGUAL AO PRINT) ---
+elif menu == "📥 Entrada Material":
+    st.header("📥 Entrada de Matéria Prima")
+    st.markdown("<p style='color:#9499B0'>Registre o recebimento de aço em kg.</p>", unsafe_allow_html=True)
+    
+    col_f, col_p = st.columns([2, 1])
+    with col_f:
+        st.markdown('<div class="main-card">', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        p_tubo = c1.number_input("TUBOS (KG)", min_value=0.0)
+        p_barra = c2.number_input("BARRAS MACIÇAS (KG)", min_value=0.0)
+        obs = st.text_area("FORNECEDOR / OBSERVAÇÕES")
+        if st.button("Registrar Entrada"):
+            st.session_state.estoque['tubo_kg'] += p_tubo
+            st.session_state.estoque['barra_kg'] += p_barra
+            registrar_log("CARGA", "ENTRADA", obs.upper() if obs else "FORNECEDOR", "AÇO", "MATÉRIA PRIMA", 0, p_tubo+p_barra)
+            salvar(); st.success("Carga registrada!"); st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col_p:
+        st.markdown('<div class="projecao-card">', unsafe_allow_html=True)
+        st.markdown('<p class="metric-title">ESTOQUE ATUAL (KG)</p>', unsafe_allow_html=True)
+        st.markdown('<p class="metric-title">Tubos</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="metric-value">{st.session_state.estoque["tubo_kg"]:.1f} <span class="metric-unit">kg</span></p>', unsafe_allow_html=True)
+        st.markdown('<p class="metric-title">Barras Maciças</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="metric-value">{st.session_state.estoque["barra_kg"]:.1f} <span class="metric-unit">kg</span></p>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-elif menu == "📊 RELATÓRIO":
-    st.header("📊 Relatório Completo")
+# --- 📜 HISTÓRICO ---
+elif menu == "📜 Histórico":
+    st.header("📜 Histórico de Atividades")
     if os.path.exists(DB_FILE):
-        df = pd.read_csv(DB_FILE, sep=';', encoding='utf-8-sig', on_bad_lines='skip')
-        if 'QTD (Un)' in df.columns: df = df.rename(columns={'QTD (Un)': 'QTD'})
-        st.dataframe(df.sort_values(by='ID', ascending=False), use_container_width=True)
+        df_h = pd.read_csv(DB_FILE, sep=';', encoding='utf-8-sig', on_bad_lines='skip')
+        if 'QTD (Un)' in df_h.columns: df_h = df_h.rename(columns={'QTD (Un)': 'QTD'})
+        st.dataframe(df_h.sort_values(by='ID', ascending=False), use_container_width=True)
         
         st.divider()
         contato = st.selectbox("Enviar resumo para:", list(CONTATOS.keys()))
